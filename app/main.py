@@ -41,13 +41,18 @@ def get_bus_arrival(api_key, bus_stop_code):
         for service in services:
             service_no = service["ServiceNo"]
             arrival_times = []
-            for bus in ["NextBus", "NextBus2", "NextBus3"]:
+            for bus in ["NextBus", "NextBus2", "NextBus3"]: # This defines a list of three bus timings; LTA API can give up to four.
                 if service.get(bus):
-                    eta = service[bus]["EstimatedArrival"]
+                    eta = service[bus]["EstimatedArrival"] # 0 give the datetime for the next bus, 1 gives the "duration", either can be negative
                     if eta:
-                        eta_time = datetime.strptime(eta, "%Y-%m-%dT%H:%M:%S%z")
-                        time_diff = (eta_time - datetime.now(eta_time.tzinfo)).total_seconds() / 60
-                        arrival_times.append(round(time_diff))
+                        eta_time = datetime.strptime(eta, "%Y-%m-%dT%H:%M:%S%z") #Could I check if the duration is negative and reject that?
+                        time_diff = (eta_time - datetime.now(eta_time.tzinfo)).total_seconds() / 60 # This diif may result in zeros and negatives 
+                        time_diff_rnd = round(time_diff)
+                        # Lazy method, give "Arr" for zero or negative
+                        if time_diff_rnd <= 0:
+                            time_diff = "Arr"
+                        else:
+                            arrival_times.append(round(time_diff_rnd))
             if arrival_times:
                 bus_info.append((service_no, arrival_times))
         return bus_info
@@ -140,6 +145,9 @@ def display_bus_arrivals(epd, draw, font, bus_info_A, bus_info_B):
         times_text = " | ".join(map(str, arrival_times))
         draw.text((220 + column_offset, y + 55), times_text, font=font, fill=0)
         y += 70
+
+    update_font = ImageFont.truetype(os.path.join(picdir, 'OpenSans-Bold.ttf'), 20)
+    draw.text((20, y + 58), "Updated: " + datetime.now().strftime(%I:%M:%S %p), font=update_font, fill=0) #time last updated
     
     epd.display(epd.getbuffer(Himage))
 
@@ -180,10 +188,6 @@ def display_train_disruption(epd, draw, font, train_info):
 try:
     logging.info("Bus Arrival Display on E-Ink")
     epd = epd7in5_V2.EPD()
-    
-    logging.info("Init and Clear")
-    epd.init()
-    epd.Clear()
 
   # Using a larger and bold font
     font48 = ImageFont.truetype(os.path.join(picdir, 'OpenSans-Bold.ttf'), 32)
@@ -199,8 +203,13 @@ try:
         #Display Bus Arrival
         bus_info_A = get_bus_arrival(api_key, bus_stop_code_A)
         bus_info_B = get_bus_arrival(api_key, bus_stop_code_B)
+        
+        logging.info("Init and Clear")
+        epd.init()
+        epd.Clear()
         display_bus_arrivals(epd, draw, font48, bus_info_A, bus_info_B)
-        time.sleep(30)  # Refresh every 30 seconds
+        epd.sleep() # Display goes to sleep, prolongs display life 
+        time.sleep(90)  # Refresh every 90 seconds
 
         # Display train disruptions
         # Uncomment to display train info
