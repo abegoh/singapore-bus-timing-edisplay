@@ -50,9 +50,9 @@ def get_bus_arrival(api_key, bus_stop_code):
                         time_diff_rnd = round(time_diff)
                         # Lazy method, give "Arr" for zero or negative
                         if time_diff_rnd <= 0:
-                            time_diff = "Arr"
+                            arrival_times.append("Arr")
                         else:
-                            arrival_times.append(round(time_diff_rnd))
+                            arrival_times.append(time_diff_rnd)
             if arrival_times:
                 bus_info.append((service_no, arrival_times))
         return bus_info
@@ -147,7 +147,7 @@ def display_bus_arrivals(epd, draw, font, bus_info_A, bus_info_B):
         y += 70
 
     update_font = ImageFont.truetype(os.path.join(picdir, 'OpenSans-Bold.ttf'), 20)
-    draw.text((20, y + 58), "Updated: " + datetime.now().strftime(%I:%M:%S %p), font=update_font, fill=0) #time last updated
+    draw.text((20, y + 58), "Updated: " + datetime.now().strftime("%I:%M:%S %p"), font=update_font, fill=0) #time last updated
     
     epd.display(epd.getbuffer(Himage))
 
@@ -185,6 +185,7 @@ def display_train_disruption(epd, draw, font, train_info):
     # Display the image on the E-Ink display
     epd.display(epd.getbuffer(Himage))
 
+
 try:
     logging.info("Bus Arrival Display on E-Ink")
     epd = epd7in5_V2.EPD()
@@ -203,13 +204,18 @@ try:
         #Display Bus Arrival
         bus_info_A = get_bus_arrival(api_key, bus_stop_code_A)
         bus_info_B = get_bus_arrival(api_key, bus_stop_code_B)
-        
-        logging.info("Init and Clear")
-        epd.init()
-        epd.Clear()
-        display_bus_arrivals(epd, draw, font48, bus_info_A, bus_info_B)
-        epd.sleep() # Display goes to sleep, prolongs display life 
-        time.sleep(90)  # Refresh every 90 seconds
+
+        if bus_info_A or bus_info_B:
+            logging.info("Displaying bus arrivals")
+            epd.init()
+            epd.Clear()
+            display_bus_arrivals(epd, draw, font48, bus_info_A, bus_info_B)
+            epd.sleep() # Display goes to sleep, prolongs display life 
+            time.sleep(90)  # Refresh every 90 seconds
+        else: # sleep if no services
+            logging.info("No buses operating, display sleep")
+            epd.sleep()
+            time.sleep(90)
 
         # Display train disruptions
         # Uncomment to display train info
